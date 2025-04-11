@@ -27,7 +27,7 @@ Be sure to to describe things as they are named in the documentation so I can do
 |----------|------------|---------|----------|---------|----------|-----------|
 | AWS Region Availability |  | No (US-East-1) |  |  |  |  |
 | Current Hardware Configuration |  | 2 CPU, 2 GiB RAM, 8 GiB Storage |  |  |  |  |
-| Preliminary Ingestion Rate |  | ~25,000 rows/s* |  |  |  |  |
+| Preliminary Ingestion Rate |  | ~75,000 rows/s |  |  |  |  |
 
 \* From local machine
 ## ClickHouse
