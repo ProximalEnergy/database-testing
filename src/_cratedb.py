@@ -1,3 +1,46 @@
+# https://cratedb.com/docs/guide/home/
+# https://cratedb.com/hubfs/Gated-Content/Guide-for-Time-Series-Data-Projects.pdf
+# https://cratedb.com/hubfs/Gated-Content/Guide-for-Time-Series-Data-Projects-Part-2.pdf
+# https://community.cratedb.com/t/resampling-time-series-data-with-date-bin/1009
+
+# INSERT INTO
+#   <table_name> (
+#     time,
+#     tag_id,
+#     value_int,
+#     value_float,
+#     value_str,
+#     value_bool
+#   )
+# SELECT
+#   time,
+#   tag_id,
+#   value_int,
+#   value_float,
+#   value_str,
+#   value_bool
+# FROM
+#   (
+#     SELECT
+#       DATE_BIN('1 minute'::INTERVAL, "time", 0) AS time,
+#       tag_id,
+#       value_int,
+#       value_float,
+#       value_str,
+#       value_bool,
+#       ROW_NUMBER() OVER (
+#         PARTITION BY
+#           DATE_BIN('1 minute'::INTERVAL, "time", 0),
+#           tag_id
+#         ORDER BY
+#           "time" ASC
+#       ) AS row_number
+#     FROM
+#       doc.<table_name_raw>
+#   ) x
+# WHERE
+#   row_number = 1;
+
 import os
 import time
 
@@ -16,7 +59,7 @@ load_dotenv(override=True)
 
 def get_conn():
     return client.connect(
-        "https://pink-ratts-tyerel.eks1.us-east-1.aws.cratedb.net:4200",
+        os.getenv("CRATEDB_HOST"),
         username="admin",
         password=os.getenv("CRATEDB_PASSWORD"),
         verify_ssl_cert=True,
@@ -24,25 +67,35 @@ def get_conn():
 
 
 def create_table(*, conn, table_name: str) -> None:
+    # See more about partitions at https://cratedb.com/docs/crate/reference/en/latest/general/ddl/partitioned-tables.html#partitioned-tables
+    # See more about shards at https://cratedb.com/docs/crate/reference/en/latest/general/ddl/sharding.html#ddl-sharding
+    # See more about replicas at https://cratedb.com/docs/crate/reference/en/latest/general/ddl/replication.html
+
+    # NOTE: It's recommended to have at least one replica for each shard, but two replicas would provide better fault tolerance.
+    # NOTE: Shard size, which should be between approximately 3 and 70 GB.
+    # NOTE: Each node should not have more than 1,000 shards.
+
+    # TODO: Test configurable storage engine
+
     with conn:
         cursor = conn.cursor()
         cursor.execute(
             f"""CREATE TABLE IF NOT EXISTS {table_name} (
-                time TIMESTAMP,
-                tag_id INT,
-                value_int INT NULL,
-                value_float FLOAT NULL,
-                value_str TEXT NULL,
-                value_bool BOOLEAN NULL
-                -- partition TIMESTAMP GENERATED ALWAYS AS DATE_TRUNC('day', "time")
-                -- PRIMARY KEY (time, tag_id)
+                time TIMESTAMP NOT NULL,
+                tag_id INT NOT NULL,
+                value_int INT,
+                value_float FLOAT,
+                value_str TEXT,
+                value_bool BOOLEAN,
+                partition TIMESTAMP GENERATED ALWAYS AS DATE_TRUNC('day', "time"),
+                PRIMARY KEY (time, tag_id, partition)
+            )
+            CLUSTERED INTO 1 SHARDS
+            PARTITIONED BY (partition)
+            WITH (
+                "number_of_replicas" = 0
+                -- "routing.allocation.require.storage" = 'cold'
             );
-            -- CLUSTERED INTO 3 SHARDS
-            -- PARTITIONED BY (partition)
-            -- WITH (
-            --     "number_of_replicas" = 1,
-            --     "routing.allocation.require.storage" = 'hot'
-            -- );
             """
         )
 
@@ -100,9 +153,6 @@ def insert_dataframe(*, table_name: str, df: pd.DataFrame, chunksize: int) -> fl
 
 def main():
     load_dotenv(override=True)
-
-    engine = sa.create_engine(os.getenv("CRATEDB_CONNECTION_STRING"))
-    connection = engine.connect()
 
     data = []
 

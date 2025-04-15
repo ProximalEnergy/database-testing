@@ -28,8 +28,11 @@ Be sure to to describe things as they are named in the documentation so I can do
 | AWS Region Availability |  | No (US-East-1) |  |  |  |  |
 | Current Hardware Configuration |  | 2 CPU, 2 GiB RAM, 8 GiB Storage |  |  |  |  |
 | Preliminary Ingestion Rate |  | ~75,000 rows/s |  |  |  |  |
+| Automated Aggregates |  | Yes (cron job), but no automated detection of new data |  |  |  |  |
+| Upserts |  | Automatic based on primary key |  |  |  |  |
 
 \* From local machine
+
 ## ClickHouse
 
 ### Notes from call
@@ -49,11 +52,18 @@ Be sure to to describe things as they are named in the documentation so I can do
 ### Questions
 
 - Is there the option to deploy CrateDB Cloud in AWS US-EAST-2 (Ohio)?
+- I am getting an ingest rate of ~75,000 rows/s from an EC2 instance in a different region. Is there a wat to get more detailed CPU information in CreateDB Cloud?
+
+- If I am using CrateDB Cloud, is there a reason to use data tiering? Where can I see the cost savings of that colder storage?
+- I see a tab for automated backups. How are those priced? How long are they retained for?
+- Do I need to add any indexes to the table?
+- Is there any egress pricing?
 
 ### Notes from call
 
 - "Continuous Aggregates" can be done in the Automation tab
 - There is no true "seamless" query layer between the database and S3, this would need to be handled by us
+- Look into monitoring endpoints to monitor database utilization data
 
 ## InfluxDB
 
