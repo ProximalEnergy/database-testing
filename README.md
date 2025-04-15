@@ -26,8 +26,8 @@ Be sure to to describe things as they are named in the documentation so I can do
 | Criteria | ClickHouse | CrateDB | InfluxDB | QuestDB | TDEngine | Timescale |
 |----------|------------|---------|----------|---------|----------|-----------|
 | AWS Region Availability |  | No (US-East-1) |  |  |  |  |
-| Current Hardware Configuration |  | 2 CPU, 2 GiB RAM, 8 GiB Storage |  |  |  |  |
-| Preliminary Ingestion Rate |  | ~75,000 rows/s |  |  |  |  |
+| Current Hardware Configuration |  | 3 Nodes, 2 CPU, 7 GiB RAM, 32 GiB Storage |  |  |  |  |
+| Preliminary Ingestion Rate |  | ~55,000 rows/s |  |  |  |  |
 | Automated Aggregates |  | Yes (cron job), but no automated detection of new data |  |  |  |  |
 | Upserts |  | Automatic based on primary key |  |  |  |  |
 
@@ -115,3 +115,12 @@ Be sure to to describe things as they are named in the documentation so I can do
 ## TDEngine
 
 ## Timescale
+
+## EC2
+```
+sudo apt-get update
+sudo apt-get install build-essential
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv sync
+```

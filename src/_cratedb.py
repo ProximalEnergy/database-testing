@@ -41,6 +41,10 @@
 # WHERE
 #   row_number = 1;
 
+# Error
+# 5000
+# CircuitBreakingException[Allocating 1mb for 'distWindowAgg: 1' failed, breaker would use 1gb in total. Limit is 1gb. Either increase memory and limit, change the query or reduce concurrent query load]
+
 import os
 import time
 
