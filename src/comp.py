@@ -34,6 +34,8 @@ colors = {
 
 for db_name, df in dfs.items():
     # Table size plot (top)
+    if "table_size_B" not in df.columns:
+        df["table_size_B"] = pd.NA
     fig.add_trace(
         go.Scatter(
             name=db_name.capitalize(),
