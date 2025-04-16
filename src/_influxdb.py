@@ -67,8 +67,8 @@ def insert_dataframe(
     # Convert value_bool to int if necessary (InfluxDB fields are numeric)
     df["value_bool"] = df["value_bool"].astype("Int32")
 
-    # Process DataFrame in chunks of 10000 rows
-    chunk_size = 10000
+    # Process DataFrame in chunks
+    chunk_size = 25_000
     for i in range(0, len(df), chunk_size):
         chunk_df = df.iloc[i : i + chunk_size]
         client._write_api.write(

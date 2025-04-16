@@ -27,8 +27,8 @@ Be sure to to describe things as they are named in the documentation so I can do
 |----------|------------|---------|----------|---------|----------|-----------|
 | AWS Region Availability |  | No (US-East-1) |  |  |  |  |
 | Current Hardware Configuration |  | 3 Nodes, 2 CPU, 7 GiB RAM, 32 GiB Storage |  |  |  |  |
-| Preliminary Ingestion Rate |  | ~55,000 rows/s |  |  |  |  |
-| Automated Aggregates |  | Yes (cron job), but no automated detection of new data | No |  |  |  |
+| Preliminary Ingestion Rate |  | ~55,000 rows/s | ~30,000 rows/s |  |  |  |
+| Automated Aggregates |  | Yes (cron job), but no automated detection of new data | No, would need to implement manually |  |  |  |
 | Upserts |  | Automatic based on primary key |  |  |  |  |
 
 \* From local machine
@@ -84,6 +84,8 @@ Be sure to to describe things as they are named in the documentation so I can do
 - I noticed a recommended batch size of 10,000 points. Does this sound about right?
   - At least 10,000 rows, maybe even 20, 30, 40k
 
+- How can I query the measurement size?
+
 ## QuestDB
 
 ### Getting Started
@@ -122,4 +124,5 @@ sudo apt-get install build-essential
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 curl -LsSf https://astral.sh/uv/install.sh | sh
 uv sync
+git config --global user.email "marcus@proximal.energy" && git config --global user.name "Marcus Marosvari"
 ```
