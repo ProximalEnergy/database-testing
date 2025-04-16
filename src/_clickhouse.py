@@ -100,12 +100,11 @@ def insert_dataframe(
 
     df = df.replace({pd.NA: None})
 
-    rows = df.values.tolist()
-
-    # Chunk the insert into groups of 100,000 rows
-    for i in range(0, len(rows), chunksize):
-        chunk = rows[i : i + chunksize]
-        client.insert(table_name, chunk, column_names=df.columns.tolist())
+    # Chunk the insert into groups of rows
+    for i in range(0, len(df), chunksize):
+        chunk_df = df.iloc[i : i + chunksize]
+        rows = chunk_df.values.tolist()
+        client.insert(table_name, rows, column_names=df.columns.tolist())
 
     t_end = time.time()
     return round(t_end - t_start, 3)
