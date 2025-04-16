@@ -37,8 +37,8 @@ Be sure to to describe things as they are named in the documentation so I can do
 
 ### Notes from call
 
-- Use SharedMergeTree
-- Switch order of primary key (should be (tag_id, time))
+- Use SharedMergeTree - DONE
+- Switch order of primary key (should be (tag_id, time)) - DONE
 
 ### Questions
 
@@ -46,6 +46,7 @@ Be sure to to describe things as they are named in the documentation so I can do
   - Incremental Materialized Views is exactly what I need!
 
 - When using ClickHouse Cloud with object storage, are the buckets "owned" by ClickHouse. Or are they regular buckets in my object storage provider? (https://clickhouse.com/docs/cloud/reference/shared-merge-tree)
+  - Owned by ClickHouse
 
 ## CrateDB
 
