@@ -28,7 +28,7 @@ Be sure to to describe things as they are named in the documentation so I can do
 | AWS Region Availability |  | No (US-East-1) |  |  |  |  |
 | Current Hardware Configuration |  | 3 Nodes, 2 CPU, 7 GiB RAM, 32 GiB Storage |  |  |  |  |
 | Preliminary Ingestion Rate |  | ~55,000 rows/s |  |  |  |  |
-| Automated Aggregates |  | Yes (cron job), but no automated detection of new data |  |  |  |  |
+| Automated Aggregates |  | Yes (cron job), but no automated detection of new data | No |  |  |  |
 | Upserts |  | Automatic based on primary key |  |  |  |  |
 
 \* From local machine
@@ -53,11 +53,10 @@ Be sure to to describe things as they are named in the documentation so I can do
 
 - Is there the option to deploy CrateDB Cloud in AWS US-EAST-2 (Ohio)?
 - I am getting an ingest rate of ~75,000 rows/s from an EC2 instance in a different region. Is there a wat to get more detailed CPU information in CreateDB Cloud?
-
-- If I am using CrateDB Cloud, is there a reason to use data tiering? Where can I see the cost savings of that colder storage?
-- I see a tab for automated backups. How are those priced? How long are they retained for?
 - Do I need to add any indexes to the table?
 - Is there any egress pricing?
+- If I am using CrateDB Cloud, is there a reason to use data tiering? Where can I see the cost savings of that colder storage?
+- I see a tab for automated backups. How are those priced? How long are they retained for?
 
 ### Notes from call
 
