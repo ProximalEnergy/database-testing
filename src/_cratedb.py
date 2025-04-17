@@ -96,12 +96,12 @@ def create_table(*, conn, table_name: str) -> None:
                 partition TIMESTAMP GENERATED ALWAYS AS DATE_TRUNC('day', "time"),
                 PRIMARY KEY (time, tag_id, partition)
             )
-            CLUSTERED INTO 1 SHARDS
+            -- CLUSTERED INTO 1 SHARDS
             PARTITIONED BY (partition)
-            WITH (
-                "number_of_replicas" = 0
+            -- WITH (
+                -- "number_of_replicas" = 0
                 -- "routing.allocation.require.storage" = 'cold'
-            );
+            -- );
             """
         )
 

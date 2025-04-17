@@ -26,7 +26,7 @@ Be sure to to describe things as they are named in the documentation so I can do
 | Criteria | ClickHouse | CrateDB | InfluxDB | QuestDB | TDEngine | Timescale |
 |----------|------------|---------|----------|---------|----------|-----------|
 | AWS Region Availability | Yes | No (US-East-1) | No (US-East-1) |  |  |  |
-| Current Hardware Configuration | 2 Nodes, 2 vCPUs, 8 GiB RAM | 3 Nodes, 2 CPU, 7 GiB RAM, 32 GiB Storage |  |  |  |  |
+| Current Hardware Configuration | 2 Nodes, 2 vCPUs, 8 GiB RAM | 3 Nodes, 2 CPU, 7 GiB RAM (CR1), 32 GiB Storage |  |  |  |  |
 | Preliminary Ingestion Rate | ~200,000 rows/s | ~55,000 rows/s | ~30,000 rows/s |  |  |  |
 | Automated Aggregates | Yes, on insert | Yes (cron job), but no automated detection of new data | No, would need to implement manually |  |  |  |
 | Upserts |  | Automatic based on primary key |  |  |  |  |
@@ -97,7 +97,7 @@ Be sure to to describe things as they are named in the documentation so I can do
 ### Action Items
 
 - Materialized Views (https://questdb.com/docs/concept/mat-views/)
-- Upserting all of the data took a *very* long time on the largest data set
+- Upserts all of the data took a *very* long time on the largest data set
 
 ### Questions
 
