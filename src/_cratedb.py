@@ -45,6 +45,8 @@
 # 5000
 # CircuitBreakingException[Allocating 1mb for 'distWindowAgg: 1' failed, breaker would use 1gb in total. Limit is 1gb. Either increase memory and limit, change the query or reduce concurrent query load]
 
+import concurrent.futures
+import itertools
 import os
 import time
 
@@ -127,7 +129,9 @@ def get_table_size(*, conn, table_name: str) -> int:
         return cursor.fetchone()[0]  # type: ignore
 
 
-def insert_dataframe(*, table_name: str, df: pd.DataFrame, chunksize: int) -> float:
+def insert_dataframe(
+    *, table_name: str, df: pd.DataFrame, chunksize: int, workers: int
+) -> float:
     dburi = os.getenv("CRATEDB_CONNECTION_STRING")
     if dburi is None:
         raise ValueError("CRATEDB_CONNECTION_STRING is not set")
@@ -139,10 +143,12 @@ def insert_dataframe(*, table_name: str, df: pd.DataFrame, chunksize: int) -> fl
         echo=False,  # Change to True to see detailed logging
     )
 
+    chunks = []
     for i in range(0, len(df), chunksize):
-        df_chunk = df.iloc[i : i + chunksize]
+        chunks.append(df.iloc[i : i + chunksize])
 
-        df_chunk.to_sql(
+    def insert_chunk(chunk):
+        chunk.to_sql(
             name=table_name,
             con=engine,
             if_exists="append",
@@ -150,6 +156,9 @@ def insert_dataframe(*, table_name: str, df: pd.DataFrame, chunksize: int) -> fl
             chunksize=chunksize,
             method=insert_bulk,
         )
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+        executor.map(insert_chunk, chunks)
 
     t_end = time.time()
     return t_end - t_start
@@ -160,44 +169,51 @@ def main():
 
     data = []
 
-    for minutes in config["minutes"]:
-        for n_tags in config["tags"]:
-            for seconds_interval in config["seconds_interval"]:
-                case_name = data_generation.generate_case_name(
-                    minutes=minutes,
-                    n_tags=n_tags,
-                    seconds_interval=seconds_interval,
-                )
+    cases = list(
+        itertools.product(
+            config["minutes"],
+            config["workers"],
+            config["tags"],
+            config["seconds_interval"],
+        )
+    )
 
-                print(case_name)
+    for minutes, workers, n_tags, seconds_interval in cases:
+        case_name = data_generation.generate_case_name(
+            minutes=minutes,
+            n_tags=n_tags,
+            seconds_interval=seconds_interval,
+        )
 
-                table_name = f"_{case_name}"
+        print(case_name)
 
-                delete_table(conn=get_conn(), table_name=table_name)
-                create_table(conn=get_conn(), table_name=table_name)
+        table_name = f"_{case_name}"
 
-                df = pd.read_parquet(f"data/{case_name}.parquet")
+        delete_table(conn=get_conn(), table_name=table_name)
+        create_table(conn=get_conn(), table_name=table_name)
 
-                insert_time = insert_dataframe(
-                    table_name=table_name, df=df, chunksize=250_000
-                )
-                print(f"\t{round(insert_time, 3)} s")
-                print(f"\t{int(len(df) / insert_time)} rows/s")
-                table_size = get_table_size(conn=get_conn(), table_name=table_name)
+        df = pd.read_parquet(f"data/{case_name}.parquet")
 
-                data.append(
-                    {
-                        "n_tags": n_tags,
-                        "seconds_interval": seconds_interval,
-                        "data_points": len(df),
-                        "table_size_B": table_size,
-                        "insert_time_s": insert_time,
-                        "remote": utils.get_remote(),
-                    }
-                )
+        insert_time = insert_dataframe(
+            table_name=table_name, df=df, chunksize=250_000, workers=workers
+        )
+        print(f"\t{round(insert_time, 3)} s")
+        print(f"\t{int(len(df) / insert_time)} rows/s")
+        table_size = get_table_size(conn=get_conn(), table_name=table_name)
+
+        data.append(
+            {
+                "n_tags": n_tags,
+                "seconds_interval": seconds_interval,
+                "data_points": len(df),
+                "table_size_B": table_size,
+                "insert_time_s": insert_time,
+            }
+        )
 
     df_stats = pd.DataFrame(data)
-    df_stats.to_csv("data_stats/cratedb.csv", index=False)
+    file_name = f"data_stats/cratedb_{workers}_workers_{'remote' if utils.get_remote() else 'local'}.csv"
+    df_stats.to_csv(file_name, index=False)
 
 
 if __name__ == "__main__":

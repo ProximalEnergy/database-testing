@@ -1,3 +1,5 @@
+import concurrent.futures
+import itertools
 import os
 import time
 
@@ -88,7 +90,7 @@ def get_table_size(client, table_name: str) -> int:
 
 
 def insert_dataframe(
-    client, table_name: str, df: pd.DataFrame, chunksize: int
+    client, table_name: str, df: pd.DataFrame, chunksize: int, workers: int
 ) -> float:
     """
     Insert a pandas DataFrame into ClickHouse.
@@ -100,11 +102,16 @@ def insert_dataframe(
 
     df = df.replace({pd.NA: None})
 
-    # Chunk the insert into groups of rows
+    chunks = []
     for i in range(0, len(df), chunksize):
-        chunk_df = df.iloc[i : i + chunksize]
-        rows = chunk_df.values.tolist()
+        chunks.append(df.iloc[i : i + chunksize])
+
+    def insert_chunk(chunk):
+        rows = chunk.values.tolist()
         client.insert(table_name, rows, column_names=df.columns.tolist())
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+        executor.map(insert_chunk, chunks)
 
     t_end = time.time()
     return round(t_end - t_start, 3)
@@ -122,48 +129,55 @@ def main():
 
     data = []
 
-    for minutes in config["minutes"]:
-        for n_tags in config["tags"]:
-            for seconds_interval in config["seconds_interval"]:
-                case_name = data_generation.generate_case_name(
-                    minutes=minutes,
-                    n_tags=n_tags,
-                    seconds_interval=seconds_interval,
-                )
+    cases = list(
+        itertools.product(
+            config["minutes"],
+            config["workers"],
+            config["tags"],
+            config["seconds_interval"],
+        )
+    )
 
-                print(case_name)
+    for minutes, workers, n_tags, seconds_interval in cases:
+        case_name = data_generation.generate_case_name(
+            minutes=minutes,
+            n_tags=n_tags,
+            seconds_interval=seconds_interval,
+        )
 
-                table_name = f"_{case_name}"
+        print(case_name)
 
-                df = pd.read_parquet(f"data/{case_name}.parquet")
+        table_name = f"_{case_name}"
 
-                # Start from scratch in each loop
-                delete_table(client, table_name)
-                create_table(client, table_name)
+        df = pd.read_parquet(f"data/{case_name}.parquet")
 
-                insert_time = insert_dataframe(
-                    client, table_name, df, chunksize=1_500_000
-                )
-                print(f"\t{round(insert_time, 3)} s")
-                print(f"\t{int(len(df) / insert_time)} rows/s")
-                table_size = get_table_size(client, table_name)
+        # Start from scratch in each loop
+        delete_table(client, table_name)
+        create_table(client, table_name)
 
-                data.append(
-                    {
-                        "n_tags": n_tags,
-                        "seconds_interval": seconds_interval,
-                        "data_points": len(df),
-                        "table_size_B": table_size,
-                        "insert_time_s": insert_time,
-                        "remote": utils.get_remote(),
-                    }
-                )
+        insert_time = insert_dataframe(
+            client, table_name, df, chunksize=1_500_000, workers=workers
+        )
+        print(f"\t{round(insert_time, 3)} s")
+        print(f"\t{int(len(df) / insert_time)} rows/s")
+        table_size = get_table_size(client, table_name)
 
-                # If you want to drop after:
-                # delete_table(client, table_name)
+        data.append(
+            {
+                "n_tags": n_tags,
+                "seconds_interval": seconds_interval,
+                "data_points": len(df),
+                "table_size_B": table_size,
+                "insert_time_s": insert_time,
+            }
+        )
+
+        # If you want to drop after:
+        # delete_table(client, table_name)
 
     df_stats = pd.DataFrame(data)
-    df_stats.to_csv("data_stats/clickhouse.csv", index=False)
+    file_name = f"data_stats/clickhouse_{workers}_workers_{'remote' if utils.get_remote() else 'local'}.csv"
+    df_stats.to_csv(file_name, index=False)
 
 
 if __name__ == "__main__":

@@ -1,3 +1,5 @@
+import concurrent.futures
+import itertools
 import os
 import time
 
@@ -57,7 +59,7 @@ def delete_bucket(*, bucket_id: str) -> None:
 
 
 def insert_dataframe(
-    client, bucket: str, org: str, measurement: str, df: pd.DataFrame
+    client, bucket: str, org: str, measurement: str, df: pd.DataFrame, workers: int
 ) -> float:
     """
     Insert a pandas DataFrame into InfluxDB Cloud as points.
@@ -67,17 +69,26 @@ def insert_dataframe(
     # Convert value_bool to int if necessary (InfluxDB fields are numeric)
     df["value_bool"] = df["value_bool"].astype("Int32")
 
-    # Process DataFrame in chunks
     chunk_size = 25_000
+    chunks = []
+
+    # Prepare chunks
     for i in range(0, len(df), chunk_size):
-        chunk_df = df.iloc[i : i + chunk_size]
+        chunks.append(df.iloc[i : i + chunk_size])
+
+    # Define function for parallel processing
+    def insert_chunk(chunk):
         client._write_api.write(
             bucket="data_timeseries",
-            record=chunk_df,
+            record=chunk,
             data_frame_measurement_name=measurement,
             data_frame_tag_columns=["tag_id"],
             data_frame_timestamp_column="time",
         )
+
+    # Use ThreadPoolExecutor to parallelize the insertion
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+        executor.map(insert_chunk, chunks)
 
     t_end = time.time()
     return round(t_end - t_start, 3)
@@ -101,50 +112,58 @@ def main():
 
     data = []
 
-    for minutes in config["minutes"]:
-        for n_tags in config["tags"]:
-            for seconds_interval in config["seconds_interval"]:
-                try:
-                    case_name = data_generation.generate_case_name(
-                        minutes=minutes,
-                        n_tags=n_tags,
-                        seconds_interval=seconds_interval,
-                    )
+    cases = list(
+        itertools.product(
+            config["minutes"],
+            config["workers"],
+            config["tags"],
+            config["seconds_interval"],
+        )
+    )
 
-                    print(case_name)
+    for minutes, workers, n_tags, seconds_interval in cases:
+        try:
+            case_name = data_generation.generate_case_name(
+                minutes=minutes,
+                n_tags=n_tags,
+                seconds_interval=seconds_interval,
+            )
 
-                    table_name = case_name
+            print(case_name)
 
-                    df = pd.read_parquet(f"data/{case_name}.parquet")
-                    df["time"] = pd.to_datetime(df["time"])
-                    # Set month of all times to April (month 4)
-                    df["time"] = df["time"].apply(lambda x: x.replace(month=4))
+            table_name = case_name
 
-                    insert_time = insert_dataframe(
-                        client=client,
-                        bucket=table_name,
-                        org=org,
-                        measurement=table_name,
-                        df=df,
-                    )
-                    print(f"\t{round(insert_time, 3)} s")
-                    print(f"\t{int(len(df) / insert_time)} rows/s")
+            df = pd.read_parquet(f"data/{case_name}.parquet")
+            df["time"] = pd.to_datetime(df["time"])
+            # Set month of all times to April (month 4)
+            df["time"] = df["time"].apply(lambda x: x.replace(month=4))
 
-                    data.append(
-                        {
-                            "n_tags": n_tags,
-                            "seconds_interval": seconds_interval,
-                            "data_points": len(df),
-                            # "table_size_B": table_size,
-                            "insert_time_s": insert_time,
-                            "remote": utils.get_remote(),
-                        }
-                    )
-                except Exception as e:
-                    print(f"Error: {e}")
+            insert_time = insert_dataframe(
+                client=client,
+                bucket=table_name,
+                org=org,
+                measurement=table_name,
+                df=df,
+                workers=workers,
+            )
+            print(f"\t{round(insert_time, 3)} s")
+            print(f"\t{int(len(df) / insert_time)} rows/s")
+
+            data.append(
+                {
+                    "n_tags": n_tags,
+                    "seconds_interval": seconds_interval,
+                    "data_points": len(df),
+                    # "table_size_B": table_size,
+                    "insert_time_s": insert_time,
+                }
+            )
+        except Exception as e:
+            print(f"Error: {e}")
 
     df_stats = pd.DataFrame(data)
-    df_stats.to_csv("data_stats/influxdb.csv", index=False)
+    file_name = f"data_stats/influxdb_{workers}_workers_{'remote' if utils.get_remote() else 'local'}.csv"
+    df_stats.to_csv(file_name, index=False)
 
 
 if __name__ == "__main__":
